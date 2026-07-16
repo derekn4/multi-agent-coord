@@ -81,12 +81,32 @@ Session B sees the message A wrote — across two independent processes.
 ## Layout
 
 ```
-src/store.js         Persistence: atomic writes + cross-process lock (the core)
-src/coordinator.js   MCP server; four tools are thin wrappers over the store
-test/store.test.js   Proves: survives restart, concurrent writes don't corrupt
-test-helpers/        Child-process scripts the multi-process tests spawn
-hooks/               PostToolUse (TodoWrite) + Stop lifecycle hook scripts
-examples/            MCP config + hook settings snippets to copy into a project
+src/store.js           Persistence: atomic writes + cross-process lock (the core)
+src/coordinator.js     MCP server; four tools are thin wrappers over the store
+src/trace.js           Observability: JSONL event log + trace-id helpers
+tools/trace_viewer.py  Per-trace timeline viewer (stdlib Python, no deps)
+test/                  store + trace unit tests, and an end-to-end smoke test
+test-helpers/          Child-process scripts the multi-process tests spawn
+hooks/                 SessionStart + PostToolUse (TodoWrite) + Stop hook scripts
+examples/              MCP config + hook settings snippets to copy into a project
+```
+
+---
+
+## Observability (Phase 1)
+
+Every tool call appends one JSON line to `$COORDINATOR_STATE_DIR/events.jsonl`:
+timestamp, session id, tool, input, output, latency, `trace_id`, and — on
+failure — the error and its class. A `trace_id` passed on a message and threaded
+through the recipient's tool calls lets one task be reconstructed **across both
+sessions**.
+
+View any run as a per-trace timeline:
+
+```bash
+python tools/trace_viewer.py                 # all traces
+python tools/trace_viewer.py --failures      # only traces that hit an error
+python tools/trace_viewer.py --trace t-abc…  # one trace
 ```
 
 ---
@@ -95,8 +115,8 @@ examples/            MCP config + hook settings snippets to copy into a project
 
 This is Phase 0 of a multi-phase build toward a production-grade agent-coordination project:
 
-- **Phase 0 — Coordinator** *(this)*: MCP server, file persistence, tests, hooks.
-- **Phase 1 — Observability**: trace IDs across sessions, JSONL event log, a timeline viewer, explicit failure capture.
+- **Phase 0 — Coordinator** ✅: MCP server, file persistence, tests, hooks.
+- **Phase 1 — Observability** ✅ *(current)*: trace IDs across sessions, JSONL event log, a Python timeline viewer, explicit failure capture.
 - **Phase 2 — Eval harness**: 10–20 coordination tasks with deterministic pass criteria, a scorecard runner, a saved baseline.
 - **Phase 3 — Verification loop**: a grader that gates task completion, with bounded retry.
 - **Phase 4 — RAG diagnostics**: index past traces; a `diagnose_failure(trace_id)` tool that retrieves similar failures and proposes root causes.

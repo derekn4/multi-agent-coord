@@ -23,10 +23,59 @@ import {
   setState,
   getState,
 } from './store.js';
+import { logEvent } from './trace.js';
+import { randomUUID } from 'node:crypto';
 
 // MCP tool results are a list of content blocks. Our tools return data, so we
 // serialize it as one JSON text block. This helper keeps every handler tidy.
 const ok = (data) => ({ content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] });
+
+// Each Claude session spawns its own coordinator process, so a per-process id
+// effectively identifies the calling session. Override via COORDINATOR_SESSION_ID.
+const SESSION_ID = process.env.COORDINATOR_SESSION_ID || `srv-${randomUUID().slice(0, 8)}`;
+
+// Wrap a tool handler so every call appends one event to the trace log:
+// timestamp, session, tool, input, output, latency, trace id — and on failure,
+// the error and its class. The handler's own logic is untouched.
+function instrument(tool, handler) {
+  return async (args) => {
+    const start = performance.now();
+    const trace_id = args?.trace_id ?? null;
+    try {
+      const result = await handler(args);
+      let output;
+      try {
+        output = JSON.parse(result.content[0].text);
+      } catch {
+        output = undefined;
+      }
+      logEvent({
+        event: 'tool_call',
+        tool,
+        session_id: SESSION_ID,
+        trace_id,
+        input: args,
+        output,
+        ok: true,
+        latency_ms: Number((performance.now() - start).toFixed(2)),
+      });
+      return result;
+    } catch (err) {
+      logEvent({
+        event: 'tool_call',
+        tool,
+        session_id: SESSION_ID,
+        trace_id,
+        input: args,
+        ok: false,
+        error: err.message,
+        error_class: err.name || 'Error',
+        latency_ms: Number((performance.now() - start).toFixed(2)),
+      });
+      throw err;
+    }
+  };
+}
 
 const server = new McpServer({
   name: 'multi-agent-coord',
@@ -53,10 +102,10 @@ server.registerTool(
         .describe('Optional trace id to correlate a task across sessions (used in Phase 1).'),
     },
   },
-  async ({ from, to, body, trace_id }) => {
+  instrument('send_message', async ({ from, to, body, trace_id }) => {
     const record = await appendMessage({ from, to, body, trace_id });
     return ok(record);
-  },
+  }),
 );
 
 // ── Tool 2: read_messages ────────────────────────────────────────────────────
@@ -76,14 +125,16 @@ server.registerTool(
         .string()
         .optional()
         .describe('Exclusive ISO-timestamp cursor; omit to read the full history.'),
+      trace_id: z
+        .string()
+        .optional()
+        .describe('Trace id carried from a received message, to correlate this read.'),
     },
   },
-  async ({ to, since }) => {
-    // TODO(you): read from the store and return it via ok(...).
-    // Hint: readMessages is a synchronous, lock-free read.
+  instrument('read_messages', async ({ to, since }) => {
     const record = await readMessages({ to, since });
     return ok(record);
-  },
+  }),
 );
 
 // ── Tool 3: set_state ────────────────────────────────────────────────────────
@@ -97,13 +148,16 @@ server.registerTool(
     inputSchema: {
       key: z.string().describe('State key, e.g. "task_42_status".'),
       value: z.string().describe('Value to store.'),
+      trace_id: z
+        .string()
+        .optional()
+        .describe('Optional trace id to correlate this write with a task.'),
     },
   },
-  async ({ key, value }) => {
-    // TODO(you): await the store's setState and wrap the result with ok(...).
+  instrument('set_state', async ({ key, value }) => {
     const result = await setState(key, value);
     return ok(result);
-  },
+  }),
 );
 
 // ── Tool 4: get_state ────────────────────────────────────────────────────────
@@ -120,13 +174,16 @@ server.registerTool(
         .string()
         .optional()
         .describe('State key to read; omit to return the whole state bag.'),
+      trace_id: z
+        .string()
+        .optional()
+        .describe('Optional trace id to correlate this read with a task.'),
     },
   },
-  async ({ key }) => {
-    // TODO(you): call the store's getState (synchronous) and return via ok(...).
+  instrument('get_state', async ({ key }) => {
     const value = await getState(key);
     return ok({ key, value });
-  },
+  }),
 );
 
 // Connect over stdio — this is how Claude Code launches and talks to the server.

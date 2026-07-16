@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { readEvents } from '../src/trace.js';
 
 const serverPath = fileURLToPath(new URL('../src/coordinator.js', import.meta.url));
 
@@ -32,6 +33,7 @@ function parseResult(res) {
 
 before(async () => {
   dataDir = mkdtempSync(join(tmpdir(), 'coord-smoke-'));
+  process.env.COORDINATOR_STATE_DIR = dataDir; // so readEvents() reads the same log the server writes
   transport = new StdioClientTransport({
     command: process.execPath,
     args: [serverPath],
@@ -81,4 +83,24 @@ test('set_state then get_state round-trips', async () => {
     await client.callTool({ name: 'get_state', arguments: { key: 'task_42_status' } }),
   );
   assert.equal(got.value, 'in_progress');
+});
+
+test('every tool call is instrumented into the trace log with latency and trace id', async () => {
+  const traceId = 't-smoke-cross-session';
+  await client.callTool({
+    name: 'send_message',
+    arguments: { from: 'A', to: 'B', body: 'traced', trace_id: traceId },
+  });
+  await client.callTool({
+    name: 'read_messages',
+    arguments: { to: 'B', trace_id: traceId },
+  });
+
+  const traced = readEvents().filter((e) => e.trace_id === traceId);
+  assert.ok(traced.length >= 2, 'both calls appear under the same trace id');
+
+  const send = traced.find((e) => e.tool === 'send_message');
+  assert.equal(send.ok, true);
+  assert.equal(typeof send.latency_ms, 'number');
+  assert.equal(send.session_id?.startsWith('srv-'), true);
 });

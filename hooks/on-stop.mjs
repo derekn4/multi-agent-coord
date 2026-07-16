@@ -7,6 +7,7 @@
 // Register it via examples/hooks-settings.json. Requires COORDINATOR_STATE_DIR
 // to point at the same shared dir the coordinator uses.
 import { setState } from '../src/store.js';
+import { logEvent } from '../src/trace.js';
 
 const raw = await new Promise((resolve) => {
   let buf = '';
@@ -19,6 +20,7 @@ try {
   const payload = JSON.parse(raw || '{}');
   const sessionId = payload.session_id ?? 'unknown';
   await setState(`session:${sessionId}:ended`, new Date().toISOString());
+  logEvent({ event: 'session_end', session_id: sessionId, source: 'hook' });
 } catch (err) {
   // Never break session teardown — log to stderr and exit cleanly.
   process.stderr.write(`on-stop hook: ${err.message}\n`);

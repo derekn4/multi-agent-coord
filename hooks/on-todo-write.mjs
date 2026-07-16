@@ -7,6 +7,7 @@
 // Register it via examples/hooks-settings.json. Requires COORDINATOR_STATE_DIR
 // to point at the same shared dir the coordinator uses.
 import { setState } from '../src/store.js';
+import { logEvent } from '../src/trace.js';
 
 // Read the whole hook payload from stdin.
 const raw = await new Promise((resolve) => {
@@ -21,6 +22,7 @@ try {
   const sessionId = payload.session_id ?? 'unknown';
   const todos = payload.tool_input?.todos ?? [];
   await setState(`todos:${sessionId}`, todos);
+  logEvent({ event: 'todo_update', session_id: sessionId, count: todos.length, source: 'hook' });
 } catch (err) {
   // A hook must never break the agent's turn — log to stderr and exit cleanly.
   process.stderr.write(`on-todo-write hook: ${err.message}\n`);

@@ -4,6 +4,16 @@
     "COORDINATOR_STATE_DIR": "/abs/path/to/shared-coord-state"
   },
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /abs/path/to/multi-agent-coord/hooks/on-session-start.mjs"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "TodoWrite",
