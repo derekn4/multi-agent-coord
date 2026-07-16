@@ -1,0 +1,12 @@
+{
+  "_comment": "Copy this to a `.mcp.json` at the root of each project you want to coordinate. Edit the two absolute paths. For two sessions to see each other's messages, BOTH projects must point `args` at the same coordinator.js AND set the same COORDINATOR_STATE_DIR.",
+  "mcpServers": {
+    "coordinator": {
+      "command": "node",
+      "args": ["/abs/path/to/multi-agent-coord/src/coordinator.js"],
+      "env": {
+        "COORDINATOR_STATE_DIR": "/abs/path/to/shared-coord-state"
+      }
+    }
+  }
+}

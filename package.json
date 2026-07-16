@@ -1,0 +1,21 @@
+{
+  "name": "multi-agent-coord",
+  "version": "0.1.0",
+  "description": "A custom MCP server that lets concurrent Claude Code agent sessions coordinate via message passing and shared persistent state.",
+  "type": "module",
+  "bin": {
+    "multi-agent-coord": "src/coordinator.js"
+  },
+  "scripts": {
+    "start": "node src/coordinator.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.0"
+  }
+}

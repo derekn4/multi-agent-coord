@@ -1,0 +1,29 @@
+{
+  "_comment": "Merge these into a project's .claude/settings.json to snapshot agent progress and session-end into shared coordinator state. Edit the absolute paths to point at this repo's hooks/, and set COORDINATOR_STATE_DIR (in env below OR globally) to the same shared dir the coordinator uses.",
+  "env": {
+    "COORDINATOR_STATE_DIR": "/abs/path/to/shared-coord-state"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "TodoWrite",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /abs/path/to/multi-agent-coord/hooks/on-todo-write.mjs"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /abs/path/to/multi-agent-coord/hooks/on-stop.mjs"
+          }
+        ]
+      }
+    ]
+  }
+}

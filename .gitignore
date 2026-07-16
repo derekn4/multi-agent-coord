@@ -1,0 +1,10 @@
+node_modules/
+
+# Coordinator runtime state (default lives at ~/.multi-agent-coord; this
+# ignores any in-repo override dir a developer might point it at).
+.coordinator-data/
+
+# Local Claude Code config: machine-specific plugins and personal settings.
+.claude/
+
+node_modules/*
