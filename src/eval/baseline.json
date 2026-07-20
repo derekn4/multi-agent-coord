@@ -1,0 +1,111 @@
+{
+  "n": 20,
+  "mode": "scripted",
+  "overall": {
+    "tasks": 10,
+    "totalRuns": 200,
+    "passRate": 1
+  },
+  "tasks": [
+    {
+      "taskId": "msg-round-trip",
+      "title": "A->B message round-trips with matching body",
+      "runs": 20,
+      "passes": 20,
+      "passRate": 1,
+      "p50Ms": 353.53,
+      "p95Ms": 520.65,
+      "tokenCost": null
+    },
+    {
+      "taskId": "msg-broadcast",
+      "title": "A broadcast to \"all\" is seen by both B and C",
+      "runs": 20,
+      "passes": 20,
+      "passRate": 1,
+      "p50Ms": 434.31,
+      "p95Ms": 558.93,
+      "tokenCost": null
+    },
+    {
+      "taskId": "directed-isolation",
+      "title": "A directed A->B message is seen by B but not by C",
+      "runs": 20,
+      "passes": 20,
+      "passRate": 1,
+      "p50Ms": 439.69,
+      "p95Ms": 591.23,
+      "tokenCost": null
+    },
+    {
+      "taskId": "since-cursor",
+      "title": "read_messages `since` returns only newer messages",
+      "runs": 20,
+      "passes": 20,
+      "passRate": 1,
+      "p50Ms": 425.17,
+      "p95Ms": 503.03,
+      "tokenCost": null
+    },
+    {
+      "taskId": "state-round-trip",
+      "title": "set_state then get_state returns the written value",
+      "runs": 20,
+      "passes": 20,
+      "passRate": 1,
+      "p50Ms": 452.53,
+      "p95Ms": 543.14,
+      "tokenCost": null
+    },
+    {
+      "taskId": "state-overwrite",
+      "title": "second set_state on a key wins over the first",
+      "runs": 20,
+      "passes": 20,
+      "passRate": 1,
+      "p50Ms": 398.25,
+      "p95Ms": 541.46,
+      "tokenCost": null
+    },
+    {
+      "taskId": "cross-process-persistence",
+      "title": "state and messages survive a coordinator restart",
+      "runs": 20,
+      "passes": 20,
+      "passRate": 1,
+      "p50Ms": 752.01,
+      "p95Ms": 807.95,
+      "tokenCost": null
+    },
+    {
+      "taskId": "concurrent-writers",
+      "title": "N concurrent processes write distinct keys with no lost updates",
+      "runs": 20,
+      "passes": 20,
+      "passRate": 1,
+      "p50Ms": 999.55,
+      "p95Ms": 1196.47,
+      "tokenCost": null
+    },
+    {
+      "taskId": "trace-linkage",
+      "title": "a trace id links events across two coordinator sessions",
+      "runs": 20,
+      "passes": 20,
+      "passRate": 1,
+      "p50Ms": 760.72,
+      "p95Ms": 843.82,
+      "tokenCost": null
+    },
+    {
+      "taskId": "plan-execute-report",
+      "title": "A plans, B executes step 1 and reports back, A confirms",
+      "runs": 20,
+      "passes": 20,
+      "passRate": 1,
+      "p50Ms": 1156.89,
+      "p95Ms": 1506.51,
+      "tokenCost": null
+    }
+  ]
+}
