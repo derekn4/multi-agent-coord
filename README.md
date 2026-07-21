@@ -84,6 +84,8 @@ Session B sees the message A wrote — across two independent processes.
 src/store.js           Persistence: atomic writes + cross-process lock (the core)
 src/coordinator.js     MCP server; four tools are thin wrappers over the store
 src/trace.js           Observability: JSONL event log + trace-id helpers
+src/eval/              Eval harness: spawn/client plumbing, runner, scorecard, baseline
+tasks/                 The 10 eval tasks, one per file, collected in index.js
 tools/trace_viewer.py  Per-trace timeline viewer (stdlib Python, no deps)
 test/                  store + trace unit tests, and an end-to-end smoke test
 test-helpers/          Child-process scripts the multi-process tests spawn
@@ -111,12 +113,72 @@ python tools/trace_viewer.py --trace t-abc…  # one trace
 
 ---
 
+## Eval harness (Phase 2)
+
+Turns "does the coordinator work?" from a vibe into a number. Ten coordination
+tasks run against the **real** server — spawned as a child process, driven over
+stdio, the same path Claude Code uses — N times each, producing a scorecard and a
+saved baseline to compare future changes against.
+
+```bash
+node src/eval/runner.js                  # all tasks, scorecard + diff vs baseline
+node src/eval/runner.js --n 20           # runs per task (default 5)
+node src/eval/runner.js --save-baseline  # (re)establish the baseline
+```
+
+The eval "agents" are **deterministic scripts**, not live LLMs. That's a
+deliberate trade: pass rate and latency are real and reproducible, and token cost
+is honestly reported as `N/A` rather than fabricated. Every pass criterion is a
+deterministic check — no LLM-as-judge was needed.
+
+**Baseline — N=20, 200 runs, 100%:**
+
+| task | proves |
+|---|---|
+| `msg-round-trip` | directed delivery A→B |
+| `msg-broadcast` | `to:"all"` fan-out reaches B and C |
+| `directed-isolation` | a directed message is *not* visible to a third agent |
+| `since-cursor` | the `since` cursor returns only newer messages |
+| `state-round-trip` | `set_state` → `get_state` |
+| `state-overwrite` | last write wins, without duplicating the key |
+| `cross-process-persistence` | state and messages survive a server restart |
+| `concurrent-writers` | 5 concurrent processes, distinct keys, none lost |
+| `trace-linkage` | one `trace_id` spans two sessions' events |
+| `plan-execute-report` | A plans → B executes and reports → A confirms |
+
+Latency reads as **process-spawn cost, not coordination cost** — the floor is
+~350–450ms per `node coordinator.js` spawn, and the numbers scale with how many
+processes a task starts. The store operations themselves are sub-millisecond.
+
+100% is the intended *starting* point, not a stretch goal: these are
+deterministic oracles against a system with no injected failures. Phase 4 injects
+failures; that's when the number is meant to move.
+
+### Can the checks actually fail?
+
+A green scorecard is worthless if `check()` can't return false, so non-vacuity is
+verified two ways. [`test/eval.test.js`](test/eval.test.js) runs a real task with
+its check replaced by `() => false` and confirms the harness reports failure. And
+for the two tasks whose value rests on a subtle mechanism, breaking the mechanism
+must turn them red:
+
+| mutation | task | with | without |
+|---|---|---|---|
+| `withLock` → call `fn()` directly (no mutex) | `concurrent-writers` | 5/5 | **2/5** |
+| `instrument()` → `trace_id = null` | `trace-linkage` | 3/3 | **0/3** |
+
+`concurrent-writers` is a *probabilistic* detector — process spawn latency
+sometimes staggers the writers enough to avoid overlap — so it catches a missing
+lock reliably across N=20, not necessarily on a single run.
+
+---
+
 ## Roadmap
 
-This is Phase 0 of a multi-phase build toward a production-grade agent-coordination project:
+A multi-phase build toward a production-grade agent-coordination project:
 
 - **Phase 0 — Coordinator** ✅: MCP server, file persistence, tests, hooks.
-- **Phase 1 — Observability** ✅ *(current)*: trace IDs across sessions, JSONL event log, a Python timeline viewer, explicit failure capture.
-- **Phase 2 — Eval harness**: 10–20 coordination tasks with deterministic pass criteria, a scorecard runner, a saved baseline.
+- **Phase 1 — Observability** ✅: trace IDs across sessions, JSONL event log, a Python timeline viewer. Errors are captured generically (`ok:false` + `error_class`); naming specific failure classes — timeout, malformed message, stale read — is still open, and lands with Phase 4's failure injection.
+- **Phase 2 — Eval harness** ✅ *(current)*: 10 coordination tasks with deterministic pass criteria, a scorecard runner, a saved baseline at 100% (N=20).
 - **Phase 3 — Verification loop**: a grader that gates task completion, with bounded retry.
 - **Phase 4 — RAG diagnostics**: index past traces; a `diagnose_failure(trace_id)` tool that retrieves similar failures and proposes root causes.
