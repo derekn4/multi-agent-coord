@@ -1,14 +1,12 @@
 // tasks/msg-broadcast.js
 //
-// TASK 2 (you type the bodies — mirror tasks/msg-round-trip.js).
+// A broadcasts one message to "all"; both B and C must see it in their own
+// mailboxes. Covers the fan-out branch in store.js readMessages, where a message
+// matches when m.to === to OR m.to === 'all'.
 //
-// Scenario: agent A broadcasts one message to "all". BOTH agent B and agent C
-// read their mailboxes and must each see it. This proves the "all" fan-out:
-// read_messages returns a message when m.to === to OR m.to === 'all'
-// (see src/store.js readMessages).
-//
-// Reference shape lives in tasks/msg-round-trip.js. `call(client, tool, args)`
-// sends a tool call and returns its parsed JSON payload.
+// Scope note: this only asserts both recipients receive the broadcast. That a
+// *directed* message stays hidden from third parties is directed-isolation's job.
+
 import { call } from '../src/eval/harness.js';
 
 export default {
@@ -18,10 +16,7 @@ export default {
   async run({ connect, traceId }) {
     const { client, close } = await connect();
     try {
-      // TODO(you): send ONE message from 'agentA' to 'all' (body 'hello-all',
-      // pass trace_id: traceId), then read messages for BOTH 'agentB' and
-      // 'agentC'. Return { bInbox, cInbox }.
-      const sent = await call(client, 'send_message', {
+      await call(client, 'send_message', {
         from: 'agentA',
         to: 'all',
         body: 'hello-all',
@@ -42,8 +37,6 @@ export default {
   },
 
   check({ bInbox, cInbox }) {
-    // TODO(you): pass only if B's mailbox and C's mailbox each contain exactly
-    // one message whose body is 'hello-all'.
     return (
       bInbox.length === 1 &&
       bInbox[0].body === 'hello-all' &&

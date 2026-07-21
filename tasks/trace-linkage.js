@@ -1,22 +1,11 @@
 // tasks/trace-linkage.js
 //
-// TASK 9 — one trace id stitches two sessions' events into a single timeline.
+// One trace id stitches two sessions' events into a single timeline.
 //
-// This is the Phase 1 observability claim as a pass/fail check: "I can
-// reconstruct any multi-agent run after the fact." That only works if a trace id
-// minted by agent A survives the hop through a message and shows up on agent B's
-// own tool calls — otherwise you have two unrelated piles of events.
-//
-// Scenario: A (process 1) sends a message carrying traceId. B (process 2) reads
-// its mailbox and records status, threading the SAME traceId through its calls.
-// Then read the JSONL event log back and assert the trace spans both sessions.
-//
-// Two processes matter: coordinator.js stamps each event with a per-process
-// SESSION_ID, so distinct session ids in one trace is exactly the cross-session
-// linkage being claimed. One process would trivially share a session id.
-//
-// Control: A also sends an UNTRACED message. It must NOT land in the filtered
-// trace — otherwise the filter is vacuous and this task would pass on anything.
+// A sends carrying traceId; B reads and records status under the same traceId.
+// Two processes on purpose: each coordinator stamps its own SESSION_ID, so two
+// session ids under one trace id is the cross-session link being claimed. The
+// untraced control message must stay out of the filtered trace.
 
 import { call } from '../src/eval/harness.js';
 import { readEvents } from '../src/trace.js';

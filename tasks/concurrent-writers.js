@@ -1,18 +1,11 @@
 // tasks/concurrent-writers.js
 //
-// TASK 8 — N concurrent processes writing distinct keys must not lose updates.
+// N processes write distinct keys at once; none may be lost.
 //
-// This is the task the cross-process lock exists for. store.setState is a
-// read-modify-write: load the whole JSON, add one key, write it back. Without a
-// lock, two processes that read the same base state each add their own key and
-// the second write clobbers the first — a classic lost update. The keys are
-// DISTINCT, so a correct implementation must end with all N present; any missing
-// key is proof of a race, not of a conflict resolution policy.
-//
-// Note these are genuinely separate OS processes (one coordinator spawned per
-// writer), all bound to the same state dir. In-process concurrency would prove
-// nothing here — it would serialize through a single withLock in one process.
-// The mkdir-based lock in store.js is what makes this hold ACROSS processes.
+// setState is a read-modify-write, so without a lock two processes read the same
+// base state and the second write clobbers the first. Separate OS processes on
+// purpose — in-process concurrency just serializes through one withLock and
+// proves nothing about the cross-process mkdir lock.
 
 import { call } from '../src/eval/harness.js';
 

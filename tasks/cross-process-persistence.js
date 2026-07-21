@@ -1,19 +1,10 @@
 // tasks/cross-process-persistence.js
 //
-// TASK 7 — state survives a coordinator restart.
+// State survives a coordinator restart — the bug that motivated this project.
 //
-// This is the ORIGIN STORY of the whole project as a pass/fail check. Each
-// Claude session spawns its OWN coordinator process, so anything held in memory
-// is invisible to the other session and dies with the process. The fix is that
-// every mutation goes to disk and every read comes from disk.
-//
-// Scenario: connect, write state + send a message, then fully close that server
-// process. Connect a SECOND time against the same state dir — a genuinely new
-// child process with empty memory — and read both back. If the coordinator were
-// still in-memory-only, the second process would see nothing and this fails.
-//
-// `connect()` closes over this run's dataDir, so calling it twice is a real
-// restart against the same files (see harness.js connectServer).
+// Each session spawns its own coordinator, so in-memory state dies with the
+// process. Write, close the server, then reconnect against the same dir (a new
+// child with empty memory) and read back. An in-memory-only coordinator scores 0.
 
 import { call } from '../src/eval/harness.js';
 

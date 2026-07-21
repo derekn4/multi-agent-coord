@@ -1,20 +1,10 @@
 // tasks/plan-execute-report.js
 //
-// TASK 10 (capstone) — the full coordination loop, end to end.
+// The full coordination loop: A plans, B executes step 1 and reports back.
 //
-// Every earlier task isolates one property. This one composes them into the
-// scenario the plan actually describes: "Agent A produces a plan, agent B
-// executes step 1 and reports back." It exercises both directions of message
-// flow, shared state as the handoff medium, and trace continuity — across THREE
-// separate coordinator processes, so nothing survives in memory.
-//
-//   proc 1 (A):  publish plan to state  ->  message B to execute step 1
-//   proc 2 (B):  read mailbox -> read plan from state -> mark step done
-//                -> report back to A
-//   proc 3 (A):  read report -> confirm state says done
-//
-// A passes only if the whole round trip closed: B saw A's instruction, acted on
-// the plan it fetched from shared state, and A saw B's report.
+// Composes what the other tasks isolate — both message directions, shared state
+// as the handoff medium — across three processes, so nothing survives in memory
+// between hops. Passes only if the whole round trip closed.
 
 import { call } from '../src/eval/harness.js';
 

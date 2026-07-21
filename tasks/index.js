@@ -1,9 +1,8 @@
 // tasks/index.js
 //
-// The eval task set — one file per task, all collected here into the single list
-// the runner iterates. Tasks are added one at a time (pair-build): scaffold the
-// list, then type each task's run()/check() body. Uncomment an import as you add
-// its file.
+// The eval task set — one file per task, collected here into the single list the
+// runner iterates. Roughly ordered from narrowest to broadest: messaging, then
+// state, then concurrency and observability, ending with the end-to-end flow.
 
 import msgRoundTrip from './msg-round-trip.js';
 import msgBroadcast from './msg-broadcast.js';

@@ -1,15 +1,12 @@
 // tasks/state-overwrite.js
 //
-// TASK 6 — last write wins.
+// Last write wins. Writing the same key twice must leave the SECOND value, with
+// no duplicate entry and no resurrection of the first.
 //
-// Scenario: state keys are mutable. Writing the same key twice must leave the
-// SECOND value, and must not leave a duplicate entry or resurrect the first.
 // Trivial-looking, but it is the property every "task_42_status" update depends
 // on: an agent overwrites status as work progresses, and readers must never see
-// a stale value once the newer write has returned.
-//
-// This is the read-modify-write path in store.setState (data.state[key] = value
-// under the lock), so it also proves the lock's write path round-trips cleanly.
+// a stale value once the newer write has returned. Exercises the read-modify-write
+// path in store.setState (data.state[key] = value, under the lock).
 
 import { call } from '../src/eval/harness.js';
 

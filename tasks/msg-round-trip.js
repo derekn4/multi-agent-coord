@@ -1,15 +1,12 @@
 // tasks/msg-round-trip.js
 //
-// TASK 1 (reference implementation — study this, then mirror its shape for the
-// rest, exactly like send_message was the reference for the other three tools).
+// A sends one directed message to B; B reads its mailbox and must see exactly
+// that message, same body. The most basic proof that the coordinator delivers a
+// directed message across the tool boundary.
 //
-// Scenario: agent A sends one directed message to agent B; B reads its mailbox
-// and must see exactly that message with the same body. The most basic proof
-// that the coordinator delivers a directed message across the tool boundary.
-//
-// A task is { id, title, run(), check() }:
+// Task shape, common to every file here:
 //   run({ connect, traceId })  drives the real coordinator, returns a context
-//   check(context)             returns a deterministic boolean
+//   check(context)             grades it, deterministically
 
 import { call } from '../src/eval/harness.js';
 
