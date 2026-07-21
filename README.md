@@ -173,12 +173,54 @@ lock reliably across N=20, not necessarily on a single run.
 
 ---
 
+## Verification loop (Phase 3)
+
+The Phase 2 tasks grade the *coordinator*. This grades the *agent*: `complete_task`
+re-reads shared state and decides whether a claimed completion actually happened,
+before it is recorded.
+
+```bash
+node src/eval/verification-runner.js --n 5
+```
+
+The agent submits deterministic criteria; the coordinator evaluates them against
+the store and returns the gap as text the agent can act on:
+
+    { verified: false, attempts: 1, escalate: false,
+      failures: ["state_key deploy_status: expected 'done', got 'pending'"] }
+
+Two attempts, then the task is escalated and further attempts are refused. The
+bound lives in shared state, not in the caller — a looping agent cannot talk its
+way past it, and the count survives a session crash.
+
+**Results (N=5, both arms):**
+
+| metric | ungated | gated |
+|---|---|---|
+| pass rate | 20% | 80% |
+| escalation rate | — | 20% |
+| **bad completions accepted as done** | **80%** | **0%** |
+
+Pass rate is the lesser number. `persistently-broken` counts as a gated *failure*
+even though the system did the right thing by escalating it, so 80% understates
+the result. The claim that matters is the last row: failures that used to pass
+silently now either get repaired or get escalated — none pass silently.
+
+**These rates are exact, not sampled.** The injected defects are deterministic, so
+N guards against flakiness and measures latency; it does not estimate a rate. And
+per Phase 2's discipline, the gate is falsified in
+[`test/verification-falsification.test.js`](test/verification-falsification.test.js):
+replace it with one that verifies everything and the gated arm collapses back to
+20% with silent failures returning to 80%.
+
+---
+
 ## Roadmap
 
 A multi-phase build toward a production-grade agent-coordination project:
 
 - **Phase 0 — Coordinator** ✅: MCP server, file persistence, tests, hooks.
 - **Phase 1 — Observability** ✅: trace IDs across sessions, JSONL event log, a Python timeline viewer. Errors are captured generically (`ok:false` + `error_class`); naming specific failure classes — timeout, malformed message, stale read — is still open, and lands with Phase 4's failure injection.
-- **Phase 2 — Eval harness** ✅ *(current)*: 10 coordination tasks with deterministic pass criteria, a scorecard runner, a saved baseline at 100% (N=20).
-- **Phase 3 — Verification loop**: a grader that gates task completion, with bounded retry.
+- **Phase 2 — Eval harness** ✅: 10 coordination tasks with deterministic pass criteria, a scorecard runner, a saved baseline at 100% (N=20).
+- **Phase 3 — Verification loop** ✅ *(current)*: `complete_task` gates a claimed completion against deterministic criteria, with a server-enforced retry bound and escalation. On injected agent-behavior failures, pass rate goes 20% → 80% and silently-accepted bad completions go 80% → 0%.
 - **Phase 4 — RAG diagnostics**: index past traces; a `diagnose_failure(trace_id)` tool that retrieves similar failures and proposes root causes.
