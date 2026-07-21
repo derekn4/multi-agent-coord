@@ -7,7 +7,7 @@
 // -> disk -> back). Tasks stay focused on coordination logic; this file owns the
 // process/transport boilerplate.
 
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, copyFileSync, mkdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -58,5 +58,26 @@ export function removeDataDir(dir) {
     rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
   } catch {
     // Leave it behind rather than fail the run.
+  }
+}
+
+// Copy a run's event log out of its temp state dir before that dir is removed.
+//
+// Phase 2 shipped without this, so the logs died with the temp dir and nothing
+// could be inspected after the fact. Best-effort by the same reasoning as
+// removeDataDir: a failed copy of a diagnostic artifact must never take down an
+// eval run that already produced real results. A missing log is normal — a task
+// that makes no tool calls writes none.
+export function retainEvents(dataDir, destDir, label) {
+  if (!dataDir) return null;
+  try {
+    const src = join(dataDir, 'events.jsonl');
+    if (!existsSync(src)) return null;
+    mkdirSync(destDir, { recursive: true });
+    const dest = join(destDir, `${label}.jsonl`);
+    copyFileSync(src, dest);
+    return dest;
+  } catch {
+    return null;
   }
 }

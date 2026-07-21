@@ -56,3 +56,24 @@ test('buildScorecard counts passes and computes overall pass rate', () => {
 });
 
 const round = (n) => Number(n.toFixed(2));
+
+test('retainEvents copies the run log out and never throws', async () => {
+  const { retainEvents } = await import('../src/eval/harness.js');
+  const { mkdtempSync, writeFileSync, readFileSync, existsSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+
+  const src = mkdtempSync(join(tmpdir(), 'coord-retain-src-'));
+  const dest = join(mkdtempSync(join(tmpdir(), 'coord-retain-dst-')), 'traces');
+  writeFileSync(join(src, 'events.jsonl'), '{"event":"tool_call"}\n');
+
+  const out = retainEvents(src, dest, 'demo-1');
+  assert.ok(out && existsSync(out));
+  assert.match(readFileSync(out, 'utf8'), /tool_call/);
+
+  // A missing log is normal (a task may make no calls) and must be survivable --
+  // losing a whole eval run to a failed log copy would repeat a bug already
+  // fixed once in removeDataDir.
+  assert.equal(retainEvents(join(src, 'does-not-exist'), dest, 'demo-2'), null);
+  assert.equal(retainEvents(null, dest, 'demo-3'), null);
+});
