@@ -48,10 +48,16 @@ after(async () => {
   if (dataDir) rmSync(dataDir, { recursive: true, force: true });
 });
 
-test('server advertises all four tools', async () => {
+test('server advertises all five tools', async () => {
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ['get_state', 'read_messages', 'send_message', 'set_state']);
+  assert.deepEqual(names, [
+    'complete_task',
+    'get_state',
+    'read_messages',
+    'send_message',
+    'set_state',
+  ]);
 });
 
 test('send_message then read_messages round-trips across the tool boundary', async () => {
@@ -103,4 +109,46 @@ test('every tool call is instrumented into the trace log with latency and trace 
   assert.equal(send.ok, true);
   assert.equal(typeof send.latency_ms, 'number');
   assert.equal(send.session_id?.startsWith('srv-'), true);
+});
+
+test('complete_task gates a claimed completion and reports the reason', async () => {
+  parseResult(
+    await client.callTool({
+      name: 'set_state',
+      arguments: { key: 'deploy_status', value: 'pending' },
+    }),
+  );
+
+  const criteria = [{ state_key: 'deploy_status', equals: 'done' }];
+
+  const first = parseResult(
+    await client.callTool({ name: 'complete_task', arguments: { task_id: 'deploy', criteria } }),
+  );
+  assert.equal(first.verified, false);
+  assert.equal(first.attempts, 1);
+  assert.equal(first.escalate, false);
+  assert.deepEqual(first.failures, [
+    "state_key deploy_status: expected 'done', got 'pending'",
+  ]);
+
+  // The agent repairs, then re-claims.
+  parseResult(
+    await client.callTool({
+      name: 'set_state',
+      arguments: { key: 'deploy_status', value: 'done' },
+    }),
+  );
+  const second = parseResult(
+    await client.callTool({ name: 'complete_task', arguments: { task_id: 'deploy', criteria } }),
+  );
+  assert.equal(second.verified, true);
+  assert.equal(second.attempts, 2);
+});
+
+test('the verification outcome lands in the trace log', async () => {
+  const events = readEvents().filter((e) => e.event === 'verification');
+  assert.ok(events.length >= 2, 'each complete_task call logs one verification event');
+  const passed = events.find((e) => e.verified === true);
+  assert.equal(passed.task_id, 'deploy');
+  assert.equal(typeof passed.attempt, 'number');
 });
