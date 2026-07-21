@@ -1,5 +1,8 @@
 node_modules/
 
+.superpowers/*
+docs/*
+
 # Coordinator runtime state (default lives at ~/.multi-agent-coord; this
 # ignores any in-repo override dir a developer might point it at).
 .coordinator-data/
