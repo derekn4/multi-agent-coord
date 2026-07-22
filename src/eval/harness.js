@@ -18,8 +18,13 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 const serverPath = fileURLToPath(new URL('../coordinator.js', import.meta.url));
 
 // Spawn the coordinator bound to `dataDir` and connect a client over stdio.
-// Returns { client, close }. A task can call this more than once against the
-// same dataDir to simulate a process restart (see the persistence task).
+// Returns { client, transport, kill, close }. A task can call this more than
+// once against the same dataDir to simulate a process restart (see the
+// persistence task).
+//
+// `kill` SIGKILLs the child with no clean shutdown — the Phase 4 killed-session
+// injector needs the server to die mid-call so its trace ends with no terminal
+// event, which is exactly what a crashed session looks like.
 export async function connectServer(dataDir) {
   const transport = new StdioClientTransport({
     command: process.execPath,
@@ -28,7 +33,30 @@ export async function connectServer(dataDir) {
   });
   const client = new Client({ name: 'eval-harness', version: '0.0.0' });
   await client.connect(transport);
-  return { client, close: () => client.close() };
+  return { client, transport, kill: () => killChild(transport), close: () => client.close() };
+}
+
+// The MCP SDK does not promise a stable handle on the child, so reach for the
+// documented `pid` first and fall back to the private field. Returns the pid
+// killed, or null if no handle was reachable — callers assert on that rather
+// than silently recording a trace that was never actually interrupted.
+function killChild(transport) {
+  const proc = transport.process ?? transport._process ?? null;
+  const pid = transport.pid ?? proc?.pid ?? null;
+  try {
+    if (proc && typeof proc.kill === 'function') {
+      proc.kill('SIGKILL');
+      return pid;
+    }
+    if (pid) {
+      process.kill(pid, 'SIGKILL');
+      return pid;
+    }
+  } catch {
+    // Already dead; that is the outcome we wanted anyway.
+    return pid;
+  }
+  return null;
 }
 
 // Call a tool, assert it did not error, and return its parsed JSON payload.

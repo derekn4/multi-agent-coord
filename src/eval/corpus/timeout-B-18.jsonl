@@ -1,0 +1,3 @@
+{"ts":"2026-07-22T21:18:23.581Z","event":"task_start","trace_id":"t-d4cff8da-f380-4180-98b3-2c668133a7ea","injector":"timeout"}
+{"ts":"2026-07-22T21:18:23.981Z","event":"tool_call","tool":"get_state","session_id":"srv-e760200f","trace_id":"t-d4cff8da-f380-4180-98b3-2c668133a7ea","input":{"key":"ingest_phase_0","trace_id":"t-d4cff8da-f380-4180-98b3-2c668133a7ea"},"output":{"key":"ingest_phase_0"},"ok":true,"latency_ms":0.72}
+{"ts":"2026-07-22T21:18:25.805Z","event":"tool_call","tool":"set_state","session_id":"srv-e760200f","trace_id":"t-d4cff8da-f380-4180-98b3-2c668133a7ea","input":{"key":"ingest_phase","value":"committed","trace_id":"t-d4cff8da-f380-4180-98b3-2c668133a7ea"},"output":{"key":"ingest_phase","value":"committed"},"ok":true,"latency_ms":1820.08}
