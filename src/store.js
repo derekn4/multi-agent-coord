@@ -23,6 +23,8 @@ import {
 import { join } from 'node:path';
 import os from 'node:os';
 
+import { evaluateCriteria } from './criteria.js';
+
 // The empty shape of our persisted document. `messages` is an append-only log;
 // `state` is a flat key/value bag shared across sessions.
 const EMPTY = { messages: [], state: {} };
@@ -165,4 +167,35 @@ export async function setState(key, value) {
 export function getState(key) {
   const { state } = readAll();
   return key === undefined ? state : state[key];
+}
+
+// Verify an agent's claimed completion and record the verdict — the Phase 3 gate.
+//
+// Everything happens in ONE locked read-modify-write, and the criteria are graded
+// against the same in-lock snapshot the counter is written from. Evaluating
+// outside the lock would let two concurrent callers both observe attempts:1 and
+// both be granted a further try, so the bound would leak under exactly the
+// concurrency the multi-process test already proves this store sees.
+//
+// Both terminal states are sticky and return BEFORE incrementing:
+//   verified  -> idempotent, so a retry storm cannot burn attempts
+//   escalated -> a human has been paged; the agent does not get to un-page them
+export async function completeTask({ task_id, criteria, maxAttempts = 2 }) {
+  return withLock(() => {
+    const data = readAll();
+    const key = `task:${task_id}`;
+    const prior = data.state[key];
+
+    if (prior?.status === 'verified' || prior?.status === 'escalated') return prior;
+
+    const attempts = (prior?.attempts ?? 0) + 1;
+    const failures = evaluateCriteria(criteria, data);
+    const status =
+      failures.length === 0 ? 'verified' : attempts >= maxAttempts ? 'escalated' : 'pending';
+
+    const record = { status, attempts, last_failures: failures };
+    data.state[key] = record;
+    writeAtomic(data);
+    return record;
+  });
 }

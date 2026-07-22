@@ -22,6 +22,7 @@ import {
   readMessages,
   setState,
   getState,
+  completeTask,
 } from './store.js';
 import { logEvent } from './trace.js';
 import { randomUUID } from 'node:crypto';
@@ -183,6 +184,51 @@ server.registerTool(
   instrument('get_state', async ({ key }) => {
     const value = await getState(key);
     return ok({ key, value });
+  }),
+);
+
+// ── Tool 5: complete_task ────────────────────────────────────────────────────────
+// Spec: const value = completeTask(task_id, criteria); return ok({ verified, attempts, failures, escalate }).
+server.registerTool(
+  'complete_task',
+  {
+    title: 'Complete a task',
+    description: 'Mark a task as complete and return its verification results.',
+    inputSchema: {
+      task_id: z.string().describe('Stable id for the task being completed.'),
+      criteria: z.array(z.object({
+        state_key: z.string().optional(),
+        equals: z.string().optional(),
+        exists: z.boolean().optional(),
+        message_to: z.string().optional(),
+        from: z.string().optional(),
+        body_contains: z.string().optional(),
+      })).describe('Deterministic criteria: {state_key,equals}, {state_key,exists}, {message_to,from}, or {message_to,body_contains}.'),
+      trace_id: z
+        .string()
+        .optional()
+        .describe('Optional trace id to correlate this verification with a task.'),
+    },
+  },
+  instrument('complete_task', async ({ task_id, criteria, trace_id }) => {
+    const record = await completeTask({ task_id, criteria });
+
+    logEvent({
+      event: 'verification',
+      task_id,
+      session_id: SESSION_ID,
+      trace_id: trace_id ?? null,
+      attempt: record.attempts,
+      verified: record.status === 'verified',
+      escalated: record.status === 'escalated',
+      failure_count: record.last_failures.length,
+    });
+    return ok({
+      verified: record.status === 'verified',
+      attempts: record.attempts,
+      failures: record.last_failures,
+      escalate: record.status === 'escalated',
+    });
   }),
 );
 
