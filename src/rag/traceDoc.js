@@ -75,5 +75,38 @@ export function isParseError(e) {
 // Guardrail: no token may contain a UUID, an ISO timestamp, a state key, or an
 // agent id. test/trace-doc.test.js asserts exactly that.
 export function traceDoc(events) {
-  throw new Error('TODO(you): implement traceDoc');
+  const events_sorted = [...events].sort((a, b) => String(a.ts).localeCompare(String(b.ts)));
+  const tokens = [];
+  for (const e of events_sorted) {
+    tokens.push(`event:${e.event}`);
+    if (e.tool) tokens.push(`tool:${e.tool}`);
+    if (e.ok === false) tokens.push('ok:false');
+    if (e.error_class) tokens.push(`error_class:${e.error_class}`);
+    if (typeof e.latency_ms === 'number') {
+      tokens.push(`latency_bucket:${latencyBucket(e.latency_ms)}`);
+    }
+    if (isParseError(e)) tokens.push('parse_error');
+  }
+  const tools = events_sorted.map((e) => e.tool).filter(Boolean);
+  for (let i = 0; i < tools.length - 1; i++) {
+    tokens.push(`seq:${tools[i]}>${tools[i + 1]}`);
+  }
+  // 4. Push the derived shape tokens:
+  if (!events_sorted.some((e) => e.event === 'task_end')) {
+    tokens.push('no_terminal_event');
+  }
+  const session_ids = new Set(
+    events_sorted.map((e) => e.session_id).filter(Boolean)
+  );
+  if (session_ids.size > 1) {
+    tokens.push('multi_session');
+  }
+  const toolSeq = events_sorted.filter((e) => e.tool);
+  const firstGetIndex = toolSeq.findIndex((e) => e.tool === 'get_state');
+  const lastSetIndex = toolSeq.findLastIndex((e) => e.tool === 'set_state');
+  if (firstGetIndex !== -1 && lastSetIndex > firstGetIndex) {
+    tokens.push('state_read_before_write');
+  }
+  tokens.push(`len_bucket:${lenBucket(events_sorted.length)}`);
+  return { tokens };
 }
