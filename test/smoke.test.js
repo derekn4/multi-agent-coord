@@ -48,11 +48,12 @@ after(async () => {
   if (dataDir) rmSync(dataDir, { recursive: true, force: true });
 });
 
-test('server advertises all five tools', async () => {
+test('server advertises all six tools', async () => {
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name).sort();
   assert.deepEqual(names, [
     'complete_task',
+    'diagnose_failure',
     'get_state',
     'read_messages',
     'send_message',

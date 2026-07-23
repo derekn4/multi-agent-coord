@@ -24,7 +24,8 @@ import {
   getState,
   completeTask,
 } from './store.js';
-import { logEvent } from './trace.js';
+import { logEvent, readEvents } from './trace.js';
+import { diagnose } from './rag/diagnose.js';
 import { randomUUID } from 'node:crypto';
 
 // MCP tool results are a list of content blocks. Our tools return data, so we
@@ -229,6 +230,32 @@ server.registerTool(
       failures: record.last_failures,
       escalate: record.status === 'escalated',
     });
+  }),
+);
+
+// ── Tool 6: diagnose_failure ─────────────────────────────────────────────────
+// Retrieval-based failure diagnosis. Reads this run's event log, keeps the
+// events sharing `trace_id`, featurizes them, retrieves the k nearest LABELED
+// failure traces, and votes on a class -- then returns the authored playbook
+// entry for that class.
+//
+// Deterministic end to end: no model call, so this stays runnable offline and
+// its accuracy is a confusion matrix rather than a judgment call. Retrieval is
+// lexical (BM25 over engineered features), NOT dense-vector embeddings.
+server.registerTool(
+  'diagnose_failure',
+  {
+    title: 'Diagnose a failed run',
+    description:
+      'Classify a failed run by retrieving the most similar labeled failure traces ' +
+      'and returning the matched class with its remediation playbook entry. Returns ' +
+      'predicted_class: null when nothing matches confidently.',
+    inputSchema: {
+      trace_id: z.string().describe('Trace id of the run to diagnose.'),
+    },
+  },
+  instrument('diagnose_failure', async ({ trace_id }) => {
+    return ok(diagnose({ events: readEvents(), trace_id }));
   }),
 );
 
