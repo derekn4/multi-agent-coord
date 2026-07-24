@@ -8,7 +8,11 @@
   },
   "scripts": {
     "start": "node src/coordinator.js",
-    "test": "node --test"
+    "test": "node --test",
+    "eval": "node src/eval/runner.js",
+    "eval:verification": "node src/eval/verification-runner.js",
+    "eval:corpus": "node src/eval/corpus-runner.js",
+    "eval:diagnosis": "node src/eval/diagnosis-runner.js"
   },
   "engines": {
     "node": ">=18"

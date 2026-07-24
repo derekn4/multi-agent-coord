@@ -1,0 +1,88 @@
+{
+  "generatedFrom": "src/eval/diagnosis-runner.js",
+  "retrieval": "BM25 lexical over engineered trace features (not dense-vector embeddings)",
+  "classes": [
+    "killed-session",
+    "corrupted-state-file",
+    "timeout",
+    "malformed-message",
+    "stale-state-read"
+  ],
+  "k": 3,
+  "floor": {
+    "minScore": 1.5,
+    "minConfidence": 0.4
+  },
+  "indexed": 75,
+  "heldOut": 25,
+  "leaveOneOut": 1,
+  "heldOutAccuracy": 1,
+  "shuffledLabelAccuracy": 0.0933,
+  "shuffledLabelsUnchangedRatio": 0.1733,
+  "chance": 0.2,
+  "rejectsOutOfDistribution": true,
+  "confusion": {
+    "killed-session": {
+      "killed-session": 5,
+      "corrupted-state-file": 0,
+      "timeout": 0,
+      "malformed-message": 0,
+      "stale-state-read": 0,
+      "none": 0
+    },
+    "corrupted-state-file": {
+      "killed-session": 0,
+      "corrupted-state-file": 5,
+      "timeout": 0,
+      "malformed-message": 0,
+      "stale-state-read": 0,
+      "none": 0
+    },
+    "timeout": {
+      "killed-session": 0,
+      "corrupted-state-file": 0,
+      "timeout": 5,
+      "malformed-message": 0,
+      "stale-state-read": 0,
+      "none": 0
+    },
+    "malformed-message": {
+      "killed-session": 0,
+      "corrupted-state-file": 0,
+      "timeout": 0,
+      "malformed-message": 5,
+      "stale-state-read": 0,
+      "none": 0
+    },
+    "stale-state-read": {
+      "killed-session": 0,
+      "corrupted-state-file": 0,
+      "timeout": 0,
+      "malformed-message": 0,
+      "stale-state-read": 5,
+      "none": 0
+    }
+  },
+  "perClass": {
+    "killed-session": {
+      "precision": 1,
+      "recall": 1
+    },
+    "corrupted-state-file": {
+      "precision": 1,
+      "recall": 1
+    },
+    "timeout": {
+      "precision": 1,
+      "recall": 1
+    },
+    "malformed-message": {
+      "precision": 1,
+      "recall": 1
+    },
+    "stale-state-read": {
+      "precision": 1,
+      "recall": 1
+    }
+  }
+}
